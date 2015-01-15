@@ -1,0 +1,34 @@
+Version 2.1.7
+
+Version 2.1.5
+Sorted Code
+
+Version 2.1.1
+Fixbug
+
+Version 2.1.0
+New Filtering
+
+Version 2.0.7
+Fixbug
+
+Version 2.0.6
+%22 bug
+
+Version 2.0.5
+Fixbug
+
+Version 2.0.4
+Clean title
+
+Version 2.0.3
+Fixbug
+
+Version 2.0.2
+Support multilanguage native
+
+Version 2.0.1
+Update
+
+Version 2.0.0
+Ready for Pulsar 0.3

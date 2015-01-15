@@ -1,0 +1,14 @@
+# 0.3.0
+- Compatibilite Pulsar 0.3.x
+- Changement du parsing suite a refonte du site
+- Optimisations
+
+# 0.2.1
+- Ajout d'une icone
+- Utilise les titres Francais directement depuis TMDB
+
+# 0.2.0
+- Refonte du code pour s'adapter a Pulsar 0.2
+
+# 0.0.1 :
+- Version initiale
