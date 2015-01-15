@@ -25,6 +25,7 @@
 		<setting label="3D" type="labelenum" id="movie_qua5" values="Accept File|Block File|Filter Off" default="Block File"/>
 		<setting label="CAM" type="labelenum" id="movie_qua6" values="Accept File|Block File|Filter Off" default="Block File"/>
 		<setting label="TeleSync" type="labelenum" id="movie_qua7" values="Accept File|Block File|Filter Off" default="Block File"/>
+		<setting label="Trailer" type="labelenum" id="movie_qua8" values="Accept File|Block File|Filter Off" default="Block File"/>
 	</category>
 	<category label="TV Filters">
 		<setting label="Advance Setup (for 'AND' use space, for 'OR' use comma)" type="lsep"/>

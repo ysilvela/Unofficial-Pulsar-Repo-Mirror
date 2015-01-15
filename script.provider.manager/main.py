@@ -47,10 +47,7 @@ for provider in providers:
             if os.path.exists(path):
                 print '[' + provider + ']: Settings were updated!'
                 settings1 = xbmcaddon.Addon(provider)
-                if provider == 'script.pulsar.kickass-mc' or provider == 'script.pulsar.kickass_anime-mc':
-                    settings1.setSetting('language', language1)
-                else:
-                    settings1.setSetting('language', language)
+                settings1.setSetting('language', language)
                 settings1.setSetting('extra', extra)
                 settings1.setSetting('time_noti', time_noti)
                 settings1.setSetting('movie_min_size', movie_min_size)
