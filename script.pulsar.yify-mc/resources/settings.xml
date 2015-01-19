@@ -9,7 +9,7 @@
 		<setting label="1080p" type="labelenum" id="movie_qua4" values="Accept File|Block File|Filter Off" default="Accept File"/>
 		<setting label="3D" type="labelenum" id="movie_qua5" values="Accept File|Block File|Filter Off" default="Block File"/>
 		<setting label="Limitation Size Files" type="lsep"/>
-		<setting label="Minimum Size in GB (0 = Not Limit):" type="slider" id="movie_min_size" default="0" range="0,0.25,10" option="float" />
-		<setting label="Maximum Size in GB (10 = Not Limit):" type="slider" id="movie_max_size" default="10" range="0,0.25,10" option="float" />
+		<setting label="Minimum Size in GB (0 = Filter OFF):" type="slider" id="movie_min_size" default="0" range="0,0.25,10" option="float" />
+		<setting label="Maximum Size in GB (0 = Filter OFF):" type="slider" id="movie_max_size" default="10" range="0,0.25,10" option="float" />
 	</category>
 </settings>

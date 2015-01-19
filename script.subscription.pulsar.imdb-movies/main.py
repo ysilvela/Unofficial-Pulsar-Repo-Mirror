@@ -8,7 +8,7 @@ settings = subscription.Settings()
 browser = subscription.Browser()
 
 # option
-option = settings.dialog.select('Choose:', ['Genre', 'Language', 'List', 'Popular and Oscar Winner', 'TOP 250'])
+option = settings.dialog.select('Choose:', ['Genre', 'Language', 'List', 'Watchlist', 'Popular and Oscar Winner', 'TOP 250'])
 
 if option == 0:
     genre = {   'Action': 'http://www.imdb.com/genre/action/?ref_=gnr_mn_ac_mp',
@@ -181,6 +181,35 @@ elif option == 2:
         settings.dialog.ok('Pulsar IMDB List', 'Empty List! Nothing added.')
 
 elif option == 3:
+    #watchlist
+    user = settings.dialog.input('IMDB user code:', 'ur0000000')
+    if user != '':
+        url_search = "http://www.imdb.com/user/%s/watchlist" % user
+        if browser.open(url_search):
+            data = browser.content
+            list = re.findall('/list/export.list_id=(.*?)&', data)
+            print list
+            if list != []:
+                print list
+                url_search = "http://www.imdb.com/list/%s" % list[0]
+                listing = []
+                ID = []  # IMDB_ID or thetvdb ID
+                if browser.open(url_search):
+                    data = browser.content
+                    for line in re.findall('<div class="info">(.*?)</div>', data, re.S):
+                        items = re.search('/title/(.*?)/(.*?)>(.*?)<', line)
+                        year = re.search('<span class="year_type">(.*?)<', line)
+                        ID.append(items.group(1))
+                        listing.append(items.group(3).replace('&#x27;', "'") + ' ' + year.group(1))
+                else:
+                    print '[script.subscription.pulsar] %s' % browser.status
+                    settings.dialog.notification('Pulsar List integration', browser.status, settings.icon, 5000)
+                subscription.integration(listing, ID, 'MOVIE', settings.movie_folder)
+            else:
+                settings.dialog.ok('Pulsar IMDB List', 'Empty List! Nothing added.')
+
+
+elif option == 4:
     # popular
     types = {'Feature Films': 'http://www.imdb.com/search/title?count=100&title_type=feature&ref_=nv_ch_mm_1',
              'Feature Films/TV Movies': 'http://www.imdb.com/search/title?count=100&title_type=feature,tv_movie&ref_=nv_ch_mm_1',
@@ -205,7 +234,7 @@ elif option == 3:
         print '[script.subscription.pulsar] %s' % browser.status
         settings.dialog.notification('Pulsar List integration', browser.status, settings.icon, 5000)
 
-elif option == 4:
+elif option == 5:
     # TOP 250
     url_search = 'http://www.imdb.com/chart/top?ref_=nv_ch_250_4'
     listing = []
@@ -221,4 +250,3 @@ elif option == 4:
     else:
         print '[script.subscription.pulsar] %s' % browser.status
         settings.dialog.notification('Pulsar List integration', browser.status, settings.icon, 5000)
-

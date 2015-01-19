@@ -2,6 +2,7 @@
 import re
 import subscription
 
+
 # this read the settings
 settings = subscription.Settings()
 # define the browser

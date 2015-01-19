@@ -5,27 +5,62 @@ import xbmcaddon
 import xbmc
 import xbmcgui
 import os
+import time
 
 class Settings:
     def __init__(self):
+        import shelve
+        self.dialog = xbmcgui.Dialog()
         self.settings = xbmcaddon.Addon()
         self.id_addon = self.settings.getAddonInfo('id')  # gets name
         self.icon = self.settings.getAddonInfo('icon')
         self.name_provider = self.settings.getAddonInfo('name')  # gets name
         self.name_provider = re.sub('.COLOR (.*?)]', '', self.name_provider.replace('[/COLOR]', ''))
+        type_library = self.settings.getSetting('type_library')
+        if "Local"in type_library:
+            self.settings.setSetting('library', self.name_provider)
+        else:
+            self.settings.setSetting('library', 'global')
         self.movie_folder = ''
         self.show_folder = ''
         while self.movie_folder =='' and self.show_folder == '':
             self.movie_folder = self.settings.getSetting('movie_folder')
             self.show_folder = self.settings.getSetting('show_folder')
             if self.movie_folder == '' or self.show_folder == '':
+                self.dialog.ok('Subscription Pulsar list', 'Movie or show fold cannot be empty!')
                 self.settings.openSettings()
+        # remove .strm
+        self.remove_strm = self.settings.getSetting('remove_strm')
+        self.library = self.settings.getSetting('library')
+        if self.remove_strm == 'true':
+                import shelve
+                self.dialog.notification('Subscription Pulsar list', 'Removing .strm files...', self.icon, 1000)
+                path = xbmc.translatePath('special://temp')
+                database = shelve.open(path + 'pulsar-subscription-%s.db' % self.library)
+                for item in database:
+                    data = database[item]
+                    if os.path.exists(data['path']):
+                        if '.strm' in data['path']:
+                                os.remove(data['path'])
+                        else:
+                            files = os.listdir(data['path'])
+                            for file in files:
+                                if '.strm' in file and os.path.exists(data['path'] + file):
+                                    os.remove(data['path'] + file)
+                xbmc.log('All .strm files removed!', xbmc.LOGINFO)
+                self.dialog.notification('Subscription Pulsar list', 'All .strm files removed!', self.icon, 1000)
+                self.settings.setSetting('remove_strm', 'false')
+        # clear the database
         self.clear_database = self.settings.getSetting('clear_database')
         if self.clear_database == 'true':
+            self.dialog.notification('Subscription Pulsar list', 'Erasing Database...', self.icon, 1000)
             path = xbmc.translatePath('special://temp')
-            if os.path.exists(path + 'pulsar-subscription-db.db'):
-                os.remove((path + 'pulsar-subscription-db.db'))
+            database = shelve.open(path + 'pulsar-subscription-%s.db' % self.library)
+            database.clear()
+            database.close()
             self.settings.setSetting('clear_database', 'false')
+        # rest
+        self.number_files = int('0%s' % self.settings.getSetting('number_files'))
         self.dialog = xbmcgui.Dialog()
 
 class Browser:
@@ -106,11 +141,13 @@ class TV_Show():
     def __init__(self, name):
         import json
         import urllib
+
         browser = Browser()
         if browser.open('http://localhost:65251/shows/search?q=%s' % urllib.quote(name)):
             data = json.loads(browser.content)
             if len(data['items']) > 0:
                 self.code = data['items'][0]['path'].replace('plugin://plugin.video.pulsar/show/','').replace('/seasons','')
+                time.sleep(0.002)
                 browser.open('http://localhost:65251/show/%s/seasons' % self.code)
                 data = json.loads(browser.content)
                 seasons =[]
@@ -119,6 +156,7 @@ class TV_Show():
                 seasons.sort()
                 episodes = {}
                 for season in seasons:
+                    time.sleep(0.002)
                     browser.open('http://localhost:65251/show/%s/season/%s/episodes' % (self.code, season))
                     data = json.loads(browser.content)
                     episodes[season] = len(data['items'])
@@ -133,10 +171,10 @@ class TV_Show():
                 self.code = None
         else:
             self.code =None
-
+        del browser
 
 class TV_Show_code():
-    def __init__(self, code):
+    def __init__(self, code, episodes = {}, last_season=0):
         import json
         import urllib
         browser = Browser()
@@ -147,11 +185,16 @@ class TV_Show_code():
         for item in data['items']:
             seasons.append(int(item['label'].replace('Season ','').replace('Specials', '0')))
         seasons.sort()
-        episodes = {}
+        if episodes.has_key(0):
+            del episodes[0]
+        if last_season is not 0:
+            del episodes[last_season]
         for season in seasons:
-            browser.open('http://localhost:65251/show/%s/season/%s/episodes' % (self.code, season))
-            data = json.loads(browser.content)
-            episodes[season] = len(data['items'])
+            if not episodes.has_key(season):
+                time.sleep(0.002)
+                browser.open('http://localhost:65251/show/%s/season/%s/episodes' % (self.code, season))
+                data = json.loads(browser.content)
+                episodes[season] = len(data['items'])
         if len(seasons) > 0:
             self.first_season = seasons[0]
             self.last_season = seasons[-1]
@@ -159,6 +202,7 @@ class TV_Show_code():
             self.first_season = 0
             self.last_season = 0
         self.last_episode = episodes
+        del browser
 
 
 class Movie():
@@ -175,6 +219,7 @@ class Movie():
         else:
             year_movie = None
         browser = Browser()
+        time.sleep(0.002)
         if browser.open('http://localhost:65251/movies/search?q=%s' % urllib.quote(name)):
             data = json.loads(browser.content)
             if len(data['items']) > 0:
@@ -200,13 +245,17 @@ class Movie():
         else:
             self.code = None
             self.label = name
+        del browser
 
 
-def integration(listing, ID, type_list, folder, silence=False):
+def integration(listing, ID, type_list, folder, silence=False, message=''):
     import shelve
 
     dialog = xbmcgui.Dialog()
     action = xbmcaddon.Addon().getSetting('action')  # gets action
+    specials = xbmcaddon.Addon().getSetting('specials')  # gets action
+    detailed_log = xbmcaddon.Addon().getSetting('detailed_log')
+    library = xbmcaddon.Addon().getSetting('library')
     total = len(listing)
     if total > 0:
         if not silence:
@@ -216,17 +265,22 @@ def integration(listing, ID, type_list, folder, silence=False):
         if answer:
             pDialog = xbmcgui.DialogProgress()
             if not silence:
-                pDialog.create('Pulsar list integration', 'Checking for %sS' % type_list)
+                pDialog.create('Pulsar list integration', 'Checking for %sS\n%s' % (type_list, message))
             else:
-                dialog.notification('Pulsar list integration', 'Checking for %sS...' % type_list, xbmcgui.NOTIFICATION_INFO, 1000)
+                dialog.notification('', 'Pulsar list integration\nChecking for %sS\n%s' % (type_list, message), xbmcgui.NOTIFICATION_INFO, 1000)
             path = xbmc.translatePath('special://temp')
-            database = shelve.open(path + 'pulsar-subscription-db.db')
+            database = shelve.open(path + 'pulsar-subscription-%s.db' % library)
             cont = 0
             directory = ''
             for cm, item in enumerate(listing):
                 item = ' '.join(item.split()).replace(':', '').replace('/', '-')
                 if database.has_key(item):
                     data = database[item]
+                    if type_list == 'SHOW':  # update the database to find new episodes
+                        tv_show = TV_Show_code(ID[cm], data['last_episode'], data['last_season'])
+                        data['first_season'] = tv_show.first_season
+                        data['last_season'] = tv_show.last_season
+                        data['last_episode'] = tv_show.last_episode
                 else:
                     # create the item
                     data = {}
@@ -253,23 +307,40 @@ def integration(listing, ID, type_list, folder, silence=False):
                     data['episode'] = 0
                 if type_list == 'MOVIE' and data['type'] == 'MOVIE' and data['episode'] == 0 and data['ID'] is not None:  # add movies
                     cont += 1
-                    directory = folder
+                    directory = folder + item + folder[-1]
+                    data['path'] = directory
+                    if not os.path.exists(directory):
+                        os.makedirs(directory)
+                    if detailed_log == 'true':
+                        xbmc.log('[service.subscription] Code %s=%s' % (type_list, data['ID']))
                     link = 'plugin://plugin.video.pulsar/movie/%s/%s' % (data['ID'], action)
                     with open("%s%s.strm" % (directory, item), "w") as text_file:  # create .strm
                         text_file.write(link)
+                    data['path'] = '%s%s.strm' % (directory, item)
                     data['episode'] = 1
                     if not silence: pDialog.update(int(float(cm) / total * 100), 'Creating %s%s.strm...' % (directory, item))
+                    if cont % 100 == 0:
+                        dialog.notification('', 'Pulsar list integration\n%s %sS found - Still working...\n%s'
+                                            % (cont, type_list, message), xbmcgui.NOTIFICATION_INFO, 1000)
                     xbmc.log('%s%s.strm added' % (directory, item), xbmc.LOGINFO)
                 elif type_list == 'SHOW' and data['type'] == 'SHOW' and data['ID'] is not None:  # add shows
+                    if specials == 'false' and data['first_season'] == 0:
+                        data['first_season'] = 1
                     directory = folder + item + folder[-1]
+                    data['path'] = directory
                     if not os.path.exists(directory):
                         os.makedirs(directory)
-                    #xbmc.log('[service.subscription] %s %s-%s: %s' % ( item, data['first_season'], data['last_season'], data['last_episode']))
+                    if detailed_log == 'true':
+                        xbmc.log('[service.subscription] Code %s=%s\n%s' % (type_list, data['ID'], message))
+                        xbmc.log('[service.subscription] %s %s-%s: %s' % ( item, data['first_season'], data['last_season'], data['last_episode']))
                     for season in range(max(data['season'], data['first_season']), data['last_season'] + 1):
                         for episode in range(data['episode'] + 1, data['last_episode'][season] + 1):
                             cont += 1
                             link = 'plugin://plugin.video.pulsar/show/%s/season/%s/episode/%s/%s' % (data['ID'], season, episode, action)
                             if not silence: pDialog.update(int(float(cm) / total * 100), "%s%s S%02dE%02d.strm" % (directory, item, season, episode))
+                            if cont % 100 == 0:
+                                dialog.notification('', 'Pulsar list integration\n%s %sS found - Still working...\n%s'
+                                                    % (cont, type_list, message), xbmcgui.NOTIFICATION_INFO, 1000)
                             with open("%s%s S%02dE%02d.strm" % (directory, item, season, episode), "w") as text_file:  # create .strm
                                 text_file.write(link)
                                 xbmc.log('[service.subscription] %s S%02dE%02d.strm added' % (item, season, episode))
@@ -294,17 +365,20 @@ def integration(listing, ID, type_list, folder, silence=False):
             # confirmation and close database
             database.close()
             pDialog.close()
+            del pDialog
             if cont > 0:
+                xbmc.log('%s %sS added./n%s' % (cont, type_list, message), xbmc.LOGINFO)
                 if not silence:
-                    dialog.ok('Integration is done!!', '%s %sS added. You need to update your library' % (cont, type_list))
+                    dialog.ok('Integration is done!!', '%s %sS added.\n%s\nYou need to update your library' % (cont, type_list, message))
                 else:
-                    dialog.notification('Subscription Pulsar list', '%s %sS added.' % (cont, type_list), xbmcgui.NOTIFICATION_INFO, 1000)
+                    dialog.notification('', 'Pulsar list integration\n%s %sS added.\n%s' % (cont, type_list, message), xbmcgui.NOTIFICATION_INFO, 1000)
             else:
-                xbmc.log('[service.subscription] No new %sS' % type_list)
+                xbmc.log('[service.subscription] No new %sS\n%s' % (type_list, message))
                 if not silence:
-                    dialog.ok('Integration is done!!', 'No New %sS' % type_list)
+                    dialog.ok('Integration is done!!', 'No new %sS\n%s' % (type_list, message))
                 else:
-                    dialog.notification('Subscription Pulsar list', 'No New %sS' % type_list, xbmcgui.NOTIFICATION_INFO, 1000)
+                    dialog.notification('', 'Pulsar list integration\nNo new %sS\n%s' % (type_list, message), xbmcgui.NOTIFICATION_INFO, 1000)
     else:
         xbmc.log('[service.subscription] Empty List')
         if not silence: dialog.ok('Empty List!!', 'Try another list number, please')
+    del dialog
